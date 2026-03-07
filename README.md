@@ -1,6 +1,6 @@
-# Defacement Tool
+# Windows Defacer
 
-A Python-based system demonstration tool designed to simulate a "Defacement" scenario on Windows. It displays a fullscreen overlay with a countdown and triggers a Blue Screen of Death (BSOD) using native Windows APIs upon completion.
+Windows Defacer is a Python-based system demonstration tool designed to simulate a "Defacement" scenario on Windows. It displays a fullscreen overlay with a countdown and triggers a Blue Screen of Death (BSOD) using native Windows APIs upon completion.
 
 Source: https://github.com/0x7f9/blue-screen
 
