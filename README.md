@@ -4,6 +4,9 @@ Windows Defacer is a Python-based system demonstration tool designed to simulate
 
 Source Inspiration: [0x7f9/blue-screen](https://github.com/0x7f9/blue-screen)
 
+# Screenshot
+![Windows Defacer Screenshot](https://raw.githubusercontent.com/Christian93111/windows-defacer/main/screenshot/image.png)
+
 > [!CAUTION]
 > **Educational & Testing Purpose Only**: This tool is designed for security research and educational purposes. Executing this script will cause your system to crash (BSOD). Use only in controlled environments like Virtual Machines.
 
